@@ -7,13 +7,16 @@ use App\Http\Requests\StorePostRequest;
 use App\Http\Resources\PostResource;
 use App\Models\Post;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PostController extends Controller {
     /**
      * Display a listing of the resource.
      */
     public function index() {
-        return PostResource::collection(Post::with("author")->get());
+        $user = request()->user();
+        $posts = $user->posts()->paginate();
+        return PostResource::collection($posts);
     }
 
     /**
@@ -21,7 +24,7 @@ class PostController extends Controller {
      */
     public function store(StorePostRequest $request) {
         $validated = $request->validated();
-        $validated['author_id'] = 1;
+        $validated['author_id'] = $request->user()->id;
         $post = Post::create($validated);
         return new PostResource($post);
     }
@@ -30,6 +33,7 @@ class PostController extends Controller {
      * Display the specified resource.
      */
     public function show(Post $post) {
+        abort_if(Auth::id() !== $post->author_id, 403, 'Unauthorized action.');
         return response()->json(new PostResource($post));
     }
 
@@ -37,6 +41,7 @@ class PostController extends Controller {
      * Update the specified resource in storage.
      */
     public function update(Request $request, Post $post) {
+        abort_if(Auth::id() !== $post->author_id, 403, 'Unauthorized action.');
         $validated = $request->validate([
             'title' => 'required|string|min:2',
             'body' => 'required|string|min:2'
@@ -49,6 +54,7 @@ class PostController extends Controller {
      * Remove the specified resource from storage.
      */
     public function destroy(Post $post) {
+        abort_if(Auth::id() !== $post->author_id, 403, 'Unauthorized action.');
         $post->delete();
         return response()->noContent();
     }
